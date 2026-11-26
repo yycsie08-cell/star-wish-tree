@@ -1,6 +1,7 @@
 // 星願樹：朋友掛吊飾（不用登入）
-// 檢查順序：格式 → 人機驗證（Cloudflare Turnstile）→ 資料庫函式 hang_insert（限流、容量、寫入）
+// 檢查順序：格式 → 人機驗證（工作量證明）→ 記錄嘗試 → 資料庫函式 hang_insert（限流、容量、寫入）
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { checkSolution, sha256, type Solution } from "./pow.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": Deno.env.get("SITE_ORIGIN") ?? "*",
@@ -16,11 +17,6 @@ const ERR: Record<string, [number, string]> = {
   tree_full: [409, "這棵樹掛滿了"],
   tree_not_found: [404, "找不到這棵樹"],
 };
-
-async function sha256(s: string) {
-  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -39,20 +35,14 @@ Deno.serve(async (req) => {
 
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
 
-  // 人機驗證：有設定 TURNSTILE_SECRET 才會檢查
-  const secret = Deno.env.get("TURNSTILE_SECRET");
-  if (secret) {
-    const form = new FormData();
-    form.append("secret", secret);
-    form.append("response", String(b.captcha ?? ""));
-    form.append("remoteip", ip);
-    const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form });
-    const v = await r.json().catch(() => ({ success: false }));
-    if (!v.success) return json({ error: "人機驗證沒有通過，請再試一次" }, 403);
-  }
+  // 人機驗證：題目要解對、沒過期、沒被用過
+  const why = await checkSolution(b.pow as Solution | undefined);
+  if (why) return json({ error: why === "expired" ? "驗證過期了，請再按一次" : "人機驗證沒有通過，請再試一次" }, 403);
 
   const ipHash = await sha256(ip + (Deno.env.get("IP_SALT") ?? "star-wish-tree"));
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+  const used = await db.from("used_challenges").insert({ sig: (b.pow as Solution).signature });
+  if (used.error) return json({ error: used.error.code === "23505" ? "這次驗證已經用過了，請再按一次" : "伺服器出錯，等一下再試" }, used.error.code === "23505" ? 403 : 500);
   await db.rpc("hang_note", { p_ip: ipHash }); // 先記錄這次嘗試（被擋下也算）
   const { data, error } = await db.rpc("hang_insert", {
     p_tree: tree, p_kind: kind, p_color: color, p_from: from, p_message: message, p_ip: ipHash,

@@ -1705,7 +1705,21 @@ function start(panoImg, ornScene) {
   const isOwner = () => !!(TREE && me && TREE.owner === me.id);
   const ownerUI = () => { $('#demoRow').hidden = true; $('#ownerRow').hidden = !isOwner(); };
   const goOrig = go;
-  go = function (step) { if (TREE && step === 'tree' && !isOwner()) step = 'visit'; goOrig(step); };
+  go = function (step) {
+    if (TREE && step === 'tree' && !isOwner()) step = 'visit';
+    if (step === 'write' && SB && !powP) powP = solvePow().catch(() => null); // 一進寫祝福頁就在背景解題
+    goOrig(step);
+  };
+  // 人機驗證：向伺服器拿一道題目，找出答案（約 1 秒，在背景跑）
+  let powP = null;
+  async function solvePow() {
+    const c = await (await fetch(SB_URL + '/functions/v1/challenge', { headers: { apikey: SB_KEY } })).json();
+    const enc = new TextEncoder(), hx = (b) => Array.from(new Uint8Array(b), (x) => x.toString(16).padStart(2, '0')).join('');
+    for (let n = 0; n <= c.maxnumber; n++) {
+      if (hx(await crypto.subtle.digest('SHA-256', enc.encode(c.salt + n))) === c.challenge) return { salt: c.salt, number: n, challenge: c.challenge, signature: c.signature };
+    }
+    throw new Error('pow');
+  }
   async function loadTree(id) {
     const { data: t, error } = await SB.from('trees').select('*').eq('id', id).maybeSingle();
     if (error || !t) { toast('找不到這棵樹', ''); history.replaceState(null, '', location.pathname); return false; }
@@ -1754,16 +1768,19 @@ function start(panoImg, ornScene) {
       if (!msg) { toast('寫一句祝福吧', ''); $('#msg').focus(); return; }
       const who = $('#anon').checked ? '' : $('#from').value.trim();
       const opt = { k: st.sel.k, c: typeOf(st.sel.k).lim ? -1 : st.sel.c };
-      const btn = $('#hang'); btn.disabled = true;
+      const btn = $('#hang'), label = btn.textContent; btn.disabled = true; btn.textContent = '驗證中…';
       try {
-        const r = await fetch(SB_URL + '/functions/v1/hang', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SB_KEY }, body: JSON.stringify({ tree: TREE.id, kind: opt.k, color: opt.c, from: who, message: msg }) });
+        const pow = await (powP || solvePow().catch(() => null)); powP = null;
+        if (!pow) { toast('驗證失敗，請再按一次', ''); return; }
+        btn.textContent = '掛上去中…';
+        const r = await fetch(SB_URL + '/functions/v1/hang', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SB_KEY }, body: JSON.stringify({ tree: TREE.id, kind: opt.k, color: opt.c, from: who, message: msg, pow }) });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) { toast(j.error || '掛不上去，等一下再試', ''); return; }
         addOrn(opt, who || '匿名', true, j.slot);
         $('#msg').value = '';
         go('tree'); toast('掛上去了', '12/25 打開');
       } catch (err) { toast('網路有問題，等一下再試', ''); }
-      finally { btn.disabled = false; }
+      finally { btn.disabled = false; btn.textContent = label; if (st.step === 'write' && !powP) powP = solvePow().catch(() => null); }
     }, true);
     $('#mine').addEventListener('click', () => { location.href = '/'; });
     $('#logout').addEventListener('click', async () => { await SB.auth.signOut(); location.href = '/'; });
