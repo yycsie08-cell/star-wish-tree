@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>星願樹 · 後台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;min-width:0}
+:root{--bg:#0B1017;--panel:#121A24;--panel2:#18222E;--line:rgba(255,255,255,.08);--ink:#EEF2F6;--mute:#8FA2B2;--gold:#F4CB72;--gold2:#E7A94A;--red:#F07178;--green:#7FD49B;--blue:#7CB7F2}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.5 'Noto Sans TC',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--gold)}
+.serif{font-family:'Noto Serif TC',serif;font-weight:900}
+/* 登入 */
+#gate{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 30%,#1B2533,#0B1017 70%)}
+#gate .card{width:min(360px,90vw);padding:32px 28px;border-radius:24px;background:var(--panel);border:1px solid var(--line);text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+#gate h1{margin:6px 0 6px;font-size:26px;color:var(--gold)}
+#gate p{color:var(--mute);margin:0 0 22px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);white-space:nowrap;transition:background .15s,border-color .15s}
+.btn:hover{background:#202C3A;border-color:rgba(255,255,255,.16)}
+.btn.gold{background:linear-gradient(160deg,#FFE1A0,var(--gold) 45%,var(--gold2));color:#2A1A04;border:0;font-weight:700}
+.btn.danger{color:var(--red);border-color:rgba(240,113,120,.35)}
+.btn.danger:hover{background:rgba(240,113,120,.1)}
+.btn.sm{height:30px;padding:0 10px;font-size:12px;border-radius:8px}
+.btn.wide{width:100%;height:46px;font-size:15px}
+/* 版面 */
+#app{display:none;height:100%;grid-template-columns:220px 1fr}
+#app.on{display:grid}
+nav{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 12px;gap:4px;overflow-y:auto}
+.logo{display:flex;align-items:center;gap:8px;padding:4px 10px 18px;font-size:18px;color:var(--gold)}
+.logo small{font-family:'Noto Sans TC';font-weight:500;font-size:11px;color:var(--mute);letter-spacing:.2em}
+nav button{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:10px;border:0;background:none;color:var(--mute);text-align:left}
+nav button:hover{background:rgba(255,255,255,.04);color:var(--ink)}
+nav button.on{background:rgba(244,203,114,.12);color:var(--gold)}
+nav button .n{margin-left:auto;font-size:11px;padding:1px 7px;border-radius:9px;background:rgba(255,255,255,.07);color:var(--mute)}
+nav .sp{flex:1}
+nav .me{display:flex;align-items:center;gap:10px;padding:10px;border-top:1px solid var(--line);margin-top:8px;font-size:12px;color:var(--mute)}
+nav .me img{width:30px;height:30px;border-radius:50%}
+main{display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid var(--line);background:rgba(11,16,23,.8);backdrop-filter:blur(8px)}
+header h2{margin:0;font-size:20px}
+header .grow{flex:1}
+header .upd{font-size:12px;color:var(--mute)}
+.search{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);width:min(320px,40vw)}
+.search input{flex:1;background:none;border:0;outline:0}
+#view{flex:1;overflow:auto;padding:22px 24px 60px}
+/* 總覽 */
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+.kpi{padding:16px;border-radius:16px;background:var(--panel);border:1px solid var(--line)}
+.kpi .l{font-size:12px;color:var(--mute)}
+.kpi .v{font-size:28px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--mute);margin-top:2px}
+.kpi .s b{color:var(--green);font-weight:500}
+.grid2{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+.box{padding:16px 18px;border-radius:16px;background:var(--panel);border:1px solid var(--line);margin-bottom:12px}
+.box h3{margin:0 0 12px;font-size:14px;display:flex;align-items:center;gap:8px}
+.box h3 .grow{flex:1}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:none;padding:4px 10px;font-size:12px;color:var(--mute)}
+.seg button.on{background:rgba(244,203,114,.15);color:var(--gold)}
+.bars{display:flex;align-items:flex-end;gap:6px;height:180px;padding-top:10px}
+.bars .c{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.bars .b{width:100%;max-width:28px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--gold),var(--gold2));min-height:2px;position:relative}
+.bars .b span{position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--mute)}
+.bars .d{font-size:10px;color:var(--mute)}
+.hbar{display:grid;grid-template-columns:90px 1fr 34px;align-items:center;gap:8px;margin:6px 0;font-size:12px}
+.hbar i{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--gold2),var(--gold))}
+.hbar .t{color:var(--mute);text-align:right}
+.feed{list-style:none;margin:0;padding:0}
+.feed li{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.feed li:last-child{border:0}
+.feed .when{color:var(--mute);font-size:12px;white-space:nowrap;margin-left:auto}
+.dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none}
+.count{font-size:34px;color:var(--gold)}
+/* 表格 */
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.filters label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mute)}
+.filters select,.filters input{height:34px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);padding:0 8px;outline:0}
+.filters input[type=date]{color-scheme:dark}
+.filters .grow{flex:1}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.tbl th{position:sticky;top:0;background:#141D28;text-align:left;font-weight:500;font-size:12px;color:var(--mute);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;user-select:none}
+.tbl th[data-k]{cursor:pointer}
+.tbl th[data-k]:hover{color:var(--ink)}
+.tbl th .ar{opacity:.8;margin-left:4px;color:var(--gold)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:hover td{background:rgba(255,255,255,.025)}
+.tbl .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.tbl .msg{max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbl .empty{text-align:center;color:var(--mute);padding:40px}
+.pill{display:inline-block;padding:1px 8px;border-radius:9px;font-size:11px;background:rgba(255,255,255,.07);color:var(--mute);white-space:nowrap}
+.pill.g{background:rgba(127,212,155,.14);color:var(--green)}
+.pill.r{background:rgba(240,113,120,.14);color:var(--red)}
+.pill.y{background:rgba(244,203,114,.14);color:var(--gold)}
+.pill.b{background:rgba(124,183,242,.14);color:var(--blue)}
+.pager{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:10px;font-size:12px;color:var(--mute)}
+.av{width:26px;height:26px;border-radius:50%;vertical-align:middle;margin-right:8px;background:#223}
+/* 抽屜 */
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+#scrim.on{opacity:1;pointer-events:auto}
+#drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--panel);border-left:1px solid var(--line);transform:translateX(100%);transition:transform .25s ease;z-index:11;display:flex;flex-direction:column}
+#drawer.on{transform:none}
+#drawer .hd{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+#drawer .hd h3{margin:0;font-size:16px;flex:1}
+#drawer .bd{flex:1;overflow:auto;padding:16px 18px}
+#drawer dl{display:grid;grid-template-columns:96px 1fr;gap:8px 12px;margin:0 0 18px;font-size:13px}
+#drawer dt{color:var(--mute)}
+#drawer dd{margin:0;word-break:break-all}
+#drawer .acts{display:flex;flex-wrap:wrap;gap:8px;padding:14px 18px;border-top:1px solid var(--line)}
+#drawer .quote{padding:12px 14px;border-radius:12px;background:var(--panel2);white-space:pre-wrap;line-height:1.7;margin-bottom:16px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;transition:.25s;background:#F7EEDC;color:#2A1E0F;padding:10px 18px;border-radius:12px;z-index:20;pointer-events:none;font-weight:500}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+@media (max-width:860px){#app.on{grid-template-columns:1fr;grid-template-rows:auto 1fr}nav{flex-direction:row;overflow-x:auto;padding:8px;border-right:0;border-bottom:1px solid var(--line)}nav .logo,nav .sp,nav .me{display:none}nav button{flex:none}.grid2{grid-template-columns:1fr}header{flex-wrap:wrap}.search{width:100%}#view{padding:16px 12px 60px}.tbl-wrap{overflow-x:auto}}
+</style>
+</head>
+<body>
+<div id="gate"><div class="card">
+<svg width="34" height="34" viewBox="0 0 24 24" fill="#F4CB72" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.7-5.4 4.8 1.6 7L12 17.3 5.8 21l1.6-7L2 9.3l7.1-.7z"/></svg>
+<h1 class="serif">星願樹後台</h1>
+<p id="gateMsg">管理者請用 Google 登入</p>
+<button class="btn gold wide" id="login">用 Google 登入</button>
+<button class="btn wide" id="gateOut" style="margin-top:10px;display:none">換一個帳號</button>
+</div></div>
+
+<div id="app">
+<nav id="nav">
+<div class="logo serif"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.6 7.1.7-5.4 4.8 1.6 7L12 17.3 5.8 21l1.6-7L2 9.3l7.1-.7z"/></svg>星願樹<small>ADMIN</small></div>
+<button data-p="overview">總覽</button>
+<button data-p="users">使用者<span class="n" id="n_users"></span></button>
+<button data-p="trees">聖誕樹<span class="n" id="n_trees"></span></button>
+<button data-p="ornaments">吊飾與祝福<span class="n" id="n_ornaments"></span></button>
+<button data-p="logins">登入紀錄<span class="n" id="n_logins"></span></button>
+<button data-p="visitors">訪客與 IP<span class="n" id="n_visitors"></span></button>
+<button data-p="blocked">封鎖名單<span class="n" id="n_blocked"></span></button>
+<div class="sp"></div>
+<a class="btn sm" href="/" target="_blank" style="text-decoration:none;color:var(--ink)">開啟網站 ↗</a>
+<div class="me"><img id="meAv" alt=""><div><div id="meName"></div><a href="#" id="logout" style="color:var(--mute)">登出</a></div></div>
+</nav>
+<main>
+<header>
+<h2 id="title">總覽</h2>
+<div class="grow"></div>
+<div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--mute)"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" placeholder="搜尋名字、Email、IP、祝福內容…"></div>
+<span class="upd" id="upd"></span>
+<label class="upd" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="auto"> 每 30 秒更新</label>
+<button class="btn" id="refresh">重新整理</button>
+</header>
+<div id="view"></div>
+</main>
+</div>
+
+<div id="scrim"></div>
+<aside id="drawer" aria-hidden="true"><div class="hd"><h3 id="dTitle"></h3><button class="btn sm" id="dClose">關閉</button></div><div class="bd" id="dBody"></div><div class="acts" id="dActs"></div></aside>
+<div id="toast"></div>
+
+<script>
+{
+const SB = window.supabase.createClient('https://tiwbvgvbpiwwdzarwvgm.supabase.co', 'sb_publishable_rp6a7D0yXwli1GyeWVj-8g_dWcdtNe6');
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const KIND = {"ball": "彩球", "melon": "南瓜紋球", "gem": "寶石球", "drop": "水滴", "finial": "尖頂吊飾", "onion": "洋蔥頂", "spiral": "螺旋", "bell": "鈴鐺", "star5": "星星", "star8": "北極星", "snow": "冰晶雪花", "heart": "愛心", "moon": "彎月", "icicle": "冰柱", "cone": "松果", "candy": "拐杖糖", "gift": "禮物盒", "mitten": "手套", "cookie": "糖霜餅乾", "cupcake": "杯子蛋糕", "candle": "蠟燭", "angel": "天使", "robin": "知更鳥", "owl": "貓頭鷹", "penguin": "企鵝", "cottage": "小木屋", "church": "小教堂", "acorn": "橡實", "apple": "蘋果", "bow": "蝴蝶結", "drum": "玩具鼓", "teddy": "泰迪熊", "mug": "熱可可", "jingle": "三連鈴", "holly": "冬青", "mistletoe": "槲寄生", "poinsettia": "聖誕紅", "globe": "水晶球", "crown": "皇冠", "diamond": "鑽石", "lollipop": "棒棒糖", "peppermint": "薄荷糖", "donut": "甜甜圈", "macaron": "馬卡龍", "santahat": "聖誕帽", "boot": "聖誕靴", "snowhead": "雪人頭", "trumpet": "小喇叭", "note": "音符", "key": "古董鑰匙", "balloon": "熱氣球", "clock": "時鐘", "k_gingerbread_man": "薑餅人", "k_gingerbread_woman": "薑餅女孩", "k_snowman": "雪人", "k_reindeer": "小馴鹿", "k_nutcracker": "胡桃鉗", "k_lantern_hanging": "吊燈籠", "k_sled": "小雪橇", "k_train_locomotive": "小火車頭", "k_train_wagon": "小車廂", "k_tree_decorated": "小聖誕樹", "k_wreath_decorated": "花圈", "k_sock_red_cane": "聖誕襪", "k_snowflake_a": "星芒雪花", "k_snowflake_b": "六角雪花", "k_snowflake_c": "枝狀雪花", "k_present_a_round": "圓禮盒", "k_present_a_rectangle": "長禮盒", "k_hanukkah_dreidel": "陀螺", "x_aurora": "極光水晶", "x_meteor": "金色流星", "x_saturn": "星環", "x_globe": "雪景水晶球", "x_ruby": "紅寶石之心", "x_lantern": "星光燈籠"};
+const PALN = ['紅', '金', '銀', '綠', '藍', '粉', '紫', '白'], PALC = ['#D63A47', '#F2B33D', '#D8DEE4', '#2E8F59', '#3C8FD0', '#F08AAE', '#8E6BD8', '#F4F2EE'];
+const TONE = ['松綠', '冰藍', '雪白', '莓紅', '金黃'];
+const TZ = { timeZone: 'Asia/Taipei' };
+const fmt = (t) => t ? new Date(t).toLocaleString('zh-TW', { ...TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
+const dayKey = (t) => new Date(t).toLocaleDateString('sv-SE', TZ);
+const ago = (t) => { if (!t) return '—'; const s = (Date.now() - new Date(t)) / 1000; if (s < 60) return '剛剛'; if (s < 3600) return Math.floor(s / 60) + ' 分鐘前'; if (s < 86400) return Math.floor(s / 3600) + ' 小時前'; return Math.floor(s / 86400) + ' 天前'; };
+// 從瀏覽器字串看出系統與瀏覽器
+function device(ua) {
+  if (!ua) return '—';
+  const os = /iPhone|iPad|iPod/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS X|Macintosh/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '其他';
+  const br = /Line\//.test(ua) ? 'LINE' : /Instagram/.test(ua) ? 'Instagram' : /FBAN|FBAV/.test(ua) ? 'Facebook' : /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '其他';
+  return os + ' · ' + br;
+}
+const kindName = (k) => KIND[k] || k;
+const colorDot = (c) => c >= 0 ? '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + PALC[c] + ';margin-right:5px;vertical-align:-1px"></span>' + PALN[c] : '<span class="pill">原色</span>';
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2200); }
+
+let D = null, me = null, page = 'overview';
+const state = {}; // 每頁的篩選、排序、分頁
+
+// ---------- 登入 ----------
+async function boot() {
+  const { data } = await SB.auth.getSession();
+  me = data.session ? data.session.user : null;
+  if (!me) { $('#gateMsg').textContent = '管理者請用 Google 登入'; return; }
+  const ok = await load(true);
+  if (!ok) { $('#gateMsg').textContent = '這個帳號（' + (me.email || '') + '）沒有後台權限'; $('#login').style.display = 'none'; $('#gateOut').style.display = ''; return; }
+  $('#gate').remove(); $('#app').classList.add('on');
+  $('#meName').textContent = (me.user_metadata && me.user_metadata.full_name) || me.email;
+  $('#meAv').src = (me.user_metadata && me.user_metadata.avatar_url) || '';
+  go(location.hash.slice(1) || 'overview');
+}
+$('#login').onclick = () => SB.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + '/admin.html' } });
+$('#gateOut').onclick = $('#logout').onclick = async (e) => { e.preventDefault(); await SB.auth.signOut(); location.reload(); };
+
+// ---------- 資料 ----------
+async function load(first) {
+  const { data, error } = await SB.rpc('admin_data');
+  if (error) { if (!first) toast('讀取失敗：' + error.message); return false; }
+  D = data;
+  for (const k of ['users', 'trees', 'ornaments', 'logins', 'visitors', 'blocked']) $('#n_' + k).textContent = D[k].length;
+  $('#upd').textContent = '更新於 ' + new Date().toLocaleTimeString('zh-TW', { ...TZ, hour12: false });
+  if (!first) render();
+  return true;
+}
+async function act(action, id, extra, msg) {
+  const { error } = await SB.rpc('admin_action', { p_action: action, p_id: String(id), p_extra: extra == null ? null : String(extra) });
+  if (error) { toast('失敗：' + error.message); return; }
+  toast(msg || '完成'); closeDrawer(); await load();
+}
+$('#refresh').onclick = () => load();
+let autoT = 0;
+$('#auto').onchange = (e) => { clearInterval(autoT); if (e.target.checked) autoT = setInterval(() => load(), 30000); };
+$('#q').oninput = () => { if (state[page]) state[page].pg = 0; render(); };
+
+// ---------- 導覽 ----------
+const TITLES = { overview: '總覽', users: '使用者', trees: '聖誕樹', ornaments: '吊飾與祝福', logins: '登入紀錄', visitors: '訪客與 IP', blocked: '封鎖名單' };
+function go(p, preset) {
+  if (!TITLES[p]) p = 'overview';
+  page = p; location.hash = p;
+  $('#title').textContent = TITLES[p];
+  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.p === p));
+  state[p] = Object.assign(state[p] || { sort: null, dir: -1, pg: 0, per: 50, f: {} }, preset ? { f: preset, pg: 0 } : {});
+  if (preset) $('#q').value = '';
+  render();
+}
+$('#nav').onclick = (e) => { const b = e.target.closest('button[data-p]'); if (b) go(b.dataset.p); };
+
+// ---------- 共用表格（搜尋、篩選、排序、分頁、匯出 CSV） ----------
+function table(rows, cols, opts) {
+  const st = state[page], q = $('#q').value.trim().toLowerCase();
+  let list = rows.filter((r) => opts.filter(r, st.f));
+  if (q) list = list.filter((r) => opts.text(r).toLowerCase().includes(q));
+  if (st.sort) { const c = cols.find((x) => x.k === st.sort), v = c.v || ((r) => r[c.k]); list.sort((a, b) => { const x = v(a), y = v(b); return (x == null) - (y == null) || (x > y ? 1 : x < y ? -1 : 0) * st.dir; }); }
+  const total = list.length, pages = Math.max(1, Math.ceil(total / st.per)); st.pg = Math.min(st.pg, pages - 1);
+  const shown = list.slice(st.pg * st.per, st.pg * st.per + st.per);
+  const html = '<div class="filters">' + opts.filters(st.f) + '<span class="grow"></span><span class="upd">' + total + ' 筆</span><button class="btn sm" id="csv">匯出 CSV</button></div>' +
+    '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + cols.map((c) => '<th' + (c.k ? ' data-k="' + c.k + '"' : '') + '>' + c.l + (st.sort === c.k ? '<span class="ar">' + (st.dir > 0 ? '↑' : '↓') + '</span>' : '') + '</th>').join('') + '</tr></thead><tbody>' +
+    (shown.length ? shown.map((r, i) => '<tr data-i="' + i + '">' + cols.map((c) => '<td' + (c.cls ? ' class="' + c.cls + '"' : '') + '>' + c.r(r) + '</td>').join('') + '</tr>').join('') : '<tr><td class="empty" colspan="' + cols.length + '">沒有符合的資料</td></tr>') +
+    '</tbody></table></div><div class="pager">每頁 <select id="per"><option>25</option><option>50</option><option>100</option></select>' +
+    '<button class="btn sm" id="prev"' + (st.pg ? '' : ' disabled') + '>上一頁</button>' + (st.pg + 1) + ' / ' + pages + '<button class="btn sm" id="next"' + (st.pg < pages - 1 ? '' : ' disabled') + '>下一頁</button></div>';
+  $('#view').innerHTML = html;
+  $('#per').value = st.per;
+  $('#per').onchange = (e) => { st.per = +e.target.value; st.pg = 0; render(); };
+  $('#prev').onclick = () => { st.pg--; render(); };
+  $('#next').onclick = () => { st.pg++; render(); };
+  $('#view').querySelectorAll('th[data-k]').forEach((th) => th.onclick = () => { const k = th.dataset.k; st.dir = st.sort === k ? -st.dir : -1; st.sort = k; render(); });
+  $('#view').querySelectorAll('tbody tr[data-i]').forEach((tr) => tr.onclick = (e) => { if (e.target.closest('button,a')) return; opts.open(shown[+tr.dataset.i]); });
+  $('#view').querySelectorAll('[data-f]').forEach((el) => el.oninput = el.onchange = () => { st.f[el.dataset.f] = el.type === 'checkbox' ? el.checked : el.value; st.pg = 0; render(); });
+  $('#view').querySelectorAll('[data-act]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); opts.act && opts.act(b.dataset.act, shown[+b.closest('tr').dataset.i]); });
+  $('#csv').onclick = () => {
+    const out = [cols.filter((c) => c.csv !== false).map((c) => c.l)].concat(list.map((r) => cols.filter((c) => c.csv !== false).map((c) => (c.csv ? c.csv(r) : (c.v ? c.v(r) : r[c.k])) ?? '')));
+    const blob = new Blob(['﻿' + out.map((row) => row.map((x) => '"' + String(x).replace(/"/g, '""') + '"').join(',')).join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'star-wish-' + page + '-' + dayKey(Date.now()) + '.csv'; a.click();
+  };
+}
+// 篩選元件
+const sel = (f, label, val, opts) => '<label>' + label + '<select data-f="' + f + '">' + opts.map(([v, t]) => '<option value="' + esc(v) + '"' + (String(val ?? '') === String(v) ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></label>';
+const dates = (f) => '<label>從<input type="date" data-f="from" value="' + esc(f.from || '') + '"></label><label>到<input type="date" data-f="to" value="' + esc(f.to || '') + '"></label>';
+const inDates = (t, f) => (!f.from || dayKey(t) >= f.from) && (!f.to || dayKey(t) <= f.to);
+const num = (f, label, val) => '<label>' + label + '<input type="number" min="0" style="width:70px" data-f="' + f + '" value="' + esc(val || '') + '"></label>';
+const txt = (f, label, val, ph) => '<label>' + label + '<input data-f="' + f + '" value="' + esc(val || '') + '" placeholder="' + esc(ph || '') + '" style="width:150px"></label>';
+
+// ---------- 抽屜 ----------
+function drawer(title, fields, actions, extra) {
+  $('#dTitle').textContent = title;
+  $('#dBody').innerHTML = (extra || '') + '<dl>' + fields.map(([k, v]) => '<dt>' + k + '</dt><dd>' + v + '</dd>').join('') + '</dl>';
+  $('#dActs').innerHTML = actions.map((a, i) => '<button class="btn sm ' + (a.cls || '') + '" data-i="' + i + '">' + a.t + '</button>').join('');
+  $('#dActs').querySelectorAll('button').forEach((b) => b.onclick = () => actions[+b.dataset.i].f());
+  $('#drawer').classList.add('on'); $('#scrim').classList.add('on'); $('#drawer').setAttribute('aria-hidden', 'false');
+}
+function closeDrawer() { $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on'); $('#drawer').setAttribute('aria-hidden', 'true'); }
+$('#dClose').onclick = $('#scrim').onclick = closeDrawer;
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+const confirmTyped = (what, word) => prompt('這個動作不能復原：' + what + '\n確定的話請輸入「' + word + '」') === word;
+const treeUrl = (id) => location.origin + '/?t=' + id;
+const ipCell = (ip, hash) => ip ? '<span class="mono">' + esc(ip) + '</span>' : (hash ? '<span class="mono" title="舊資料只有加密值">#' + esc(hash.slice(0, 10)) + '</span>' : '—');
+
+// ---------- 各頁 ----------
+const PAGES = {
+  overview() {
+    const now = Date.now(), today = dayKey(now), d24 = now - 864e5;
+    const c = (arr, k) => arr.filter((x) => dayKey(x[k]) === today).length;
+    const openIn = Math.max(0, Math.ceil((Date.parse('2026-12-25T00:00:00+08:00') - now) / 864e5));
+    const attempts24 = D.visitors.reduce((s, v) => s + (+v.attempts_24h || 0), 0);
+    const kpi = (l, v, s) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>';
+    const st = state.overview; st.series = st.series || 'ornaments';
+    const days = [...Array(14)].map((_, i) => dayKey(now - (13 - i) * 864e5));
+    const src = { ornaments: [D.ornaments, 'created_at'], trees: [D.trees, 'created_at'], users: [D.users, 'created_at'], logins: [D.logins, 'created_at'] }[st.series];
+    const per = days.map((d) => src[0].filter((x) => dayKey(x[src[1]]) === d).length), mx = Math.max(1, ...per);
+    const kinds = {}; D.ornaments.forEach((o) => { kinds[o.kind] = (kinds[o.kind] || 0) + 1; });
+    const topK = Object.entries(kinds).sort((a, b) => b[1] - a[1]).slice(0, 8), kmx = topK.length ? topK[0][1] : 1;
+    const feed = [].concat(
+      D.ornaments.slice(0, 15).map((o) => ({ t: o.created_at, c: '#F4CB72', h: esc(o.from_name || '匿名') + ' 在「' + esc(o.tree_name) + '」掛了 ' + esc(kindName(o.kind)) })),
+      D.trees.slice(0, 15).map((t) => ({ t: t.created_at, c: '#7FD49B', h: esc(t.owner_email || '') + ' 種了「' + esc(t.name) + '」' })),
+      D.logins.slice(0, 15).map((l) => ({ t: l.created_at, c: '#7CB7F2', h: esc(l.email || '') + ' 登入（' + esc(l.ip || '—') + '）' }))
+    ).sort((a, b) => new Date(b.t) - new Date(a.t)).slice(0, 12);
+    $('#view').innerHTML = '<div class="kpis">' +
+      kpi('使用者（種樹的人）', D.users.length, '今天新增 <b>' + c(D.users, 'created_at') + '</b>') +
+      kpi('聖誕樹', D.trees.length, '今天新增 <b>' + c(D.trees, 'created_at') + '</b>') +
+      kpi('吊飾與祝福', D.ornaments.length, '今天新增 <b>' + c(D.ornaments, 'created_at') + '</b>') +
+      kpi('登入次數', D.logins.length, '今天 <b>' + c(D.logins, 'created_at') + '</b>') +
+      kpi('24 小時掛吊飾嘗試', attempts24, '訪客 IP ' + D.visitors.length + ' 個') +
+      kpi('封鎖中', D.blocked.length + D.users.filter((u) => u.banned_until && new Date(u.banned_until) > now).length, 'IP ' + D.blocked.length + '、帳號 ' + D.users.filter((u) => u.banned_until && new Date(u.banned_until) > now).length) +
+      kpi('找齊彩蛋的樹', D.trees.filter((t) => t.eggs_done).length, '平均每棵 ' + (D.trees.length ? (D.ornaments.length / D.trees.length).toFixed(1) : 0) + ' 個吊飾') +
+      kpi('距離 12/25 開信', '<span class="serif count">' + openIn + '</span> 天', openIn ? '祝福目前鎖著' : '已經可以開信') +
+      '</div><div class="grid2"><div class="box"><h3>最近 14 天<span class="grow"></span><span class="seg" id="seg">' +
+      [['ornaments', '祝福'], ['trees', '新樹'], ['users', '新使用者'], ['logins', '登入']].map(([k, t]) => '<button data-s="' + k + '" class="' + (st.series === k ? 'on' : '') + '">' + t + '</button>').join('') +
+      '</span></h3><div class="bars">' + per.map((n, i) => '<div class="c"><div class="b" style="height:' + (n / mx * 100) + '%"><span>' + (n || '') + '</span></div><div class="d">' + days[i].slice(5).replace('-', '/') + '</div></div>').join('') + '</div></div>' +
+      '<div class="box"><h3>最常被選的吊飾</h3>' + (topK.length ? topK.map(([k, n]) => '<div class="hbar"><span>' + esc(kindName(k)) + '</span><i style="width:' + (n / kmx * 100) + '%"></i><span class="t">' + n + '</span></div>').join('') : '<p style="color:var(--mute)">還沒有人掛吊飾</p>') + '</div></div>' +
+      '<div class="box"><h3>最新動態</h3><ul class="feed">' + (feed.length ? feed.map((f) => '<li><span class="dot" style="background:' + f.c + '"></span><span>' + f.h + '</span><span class="when" title="' + fmt(f.t) + '">' + ago(f.t) + '</span></li>').join('') : '<li style="color:var(--mute)">還沒有動態</li>') + '</ul></div>';
+    $('#seg').onclick = (e) => { const b = e.target.closest('button'); if (b) { st.series = b.dataset.s; render(); } };
+  },
+  users() {
+    const now = Date.now();
+    table(D.users, [
+      { k: 'email', l: '使用者', r: (u) => (u.avatar ? '<img class="av" src="' + esc(u.avatar) + '" referrerpolicy="no-referrer" alt="">' : '') + esc(u.name || '') + '<div class="mono" style="color:var(--mute)">' + esc(u.email) + '</div>', csv: (u) => u.name + ' <' + u.email + '>' },
+      { k: 'tree_name', l: '他的樹', r: (u) => u.tree_id ? esc(u.tree_name) + ' <span class="pill">' + u.orn_count + ' 個吊飾</span>' : '<span class="pill">還沒種</span>' },
+      { k: 'last_ip', l: '最後登入 IP', r: (u) => ipCell(u.last_ip), cls: 'mono' },
+      { k: 'last_ua', l: '裝置', r: (u) => esc(device(u.last_ua)), v: (u) => device(u.last_ua) },
+      { k: 'login_count', l: '登入次數', r: (u) => u.login_count },
+      { k: 'created_at', l: '註冊', r: (u) => fmt(u.created_at) },
+      { k: 'last_sign_in_at', l: '最後登入', r: (u) => '<span title="' + fmt(u.last_sign_in_at) + '">' + ago(u.last_sign_in_at) + '</span>', csv: (u) => fmt(u.last_sign_in_at) },
+      { k: 'banned_until', l: '狀態', r: (u) => u.is_admin ? '<span class="pill y">管理者</span>' : u.banned_until && new Date(u.banned_until) > now ? '<span class="pill r">封鎖到 ' + fmt(u.banned_until).slice(0, 10) + '</span>' : '<span class="pill g">正常</span>' },
+    ], {
+      filter: (u, f) => (!f.tree || (f.tree === 'yes') === !!u.tree_id) && (!f.st || (f.st === 'banned') === !!(u.banned_until && new Date(u.banned_until) > now)) && inDates(u.created_at, f),
+      text: (u) => [u.email, u.name, u.tree_name, u.last_ip, u.id].join(' '),
+      filters: (f) => sel('tree', '種樹', f.tree, [['', '全部'], ['yes', '有種樹'], ['no', '還沒種']]) + sel('st', '狀態', f.st, [['', '全部'], ['ok', '正常'], ['banned', '封鎖中']]) + dates(f),
+      open: (u) => drawer(u.name || u.email, [
+        ['Email', esc(u.email)], ['使用者編號', '<span class="mono">' + u.id + '</span>'], ['登入方式', esc(u.provider)],
+        ['註冊', fmt(u.created_at)], ['最後登入', fmt(u.last_sign_in_at)], ['登入次數', u.login_count],
+        ['最後 IP', ipCell(u.last_ip)], ['裝置', esc(device(u.last_ua))], ['瀏覽器字串', '<span class="mono" style="font-size:11px">' + esc(u.last_ua || '—') + '</span>'],
+        ['他的樹', u.tree_id ? '<a href="' + treeUrl(u.tree_id) + '" target="_blank">' + esc(u.tree_name) + ' ↗</a>（' + u.orn_count + ' 個吊飾）' : '還沒種'],
+        ['狀態', u.banned_until && new Date(u.banned_until) > now ? '封鎖到 ' + fmt(u.banned_until) : '正常'],
+      ], [
+        { t: '看登入紀錄', f: () => { closeDrawer(); go('logins', { user: u.id }); } },
+        u.tree_id && { t: '看他樹上的祝福', f: () => { closeDrawer(); go('ornaments', { tree: u.tree_id }); } },
+        !u.is_admin && (u.banned_until && new Date(u.banned_until) > now
+          ? { t: '解除封鎖', f: () => act('unban_user', u.id, null, '已解除封鎖') }
+          : { t: '封鎖 7 天', cls: 'danger', f: () => act('ban_user', u.id, 7, '已封鎖 7 天') }),
+        !u.is_admin && !(u.banned_until && new Date(u.banned_until) > now) && { t: '永久封鎖', cls: 'danger', f: () => confirm('永久封鎖 ' + u.email + '？他將不能再登入。') && act('ban_user', u.id, '', '已永久封鎖') },
+        !u.is_admin && { t: '刪除帳號（連同他的樹）', cls: 'danger', f: () => confirmTyped('刪除 ' + u.email + ' 和他的樹、樹上所有祝福', '刪除') && act('delete_user', u.id, null, '帳號已刪除') },
+      ].filter(Boolean)),
+    });
+  },
+  trees() {
+    table(D.trees, [
+      { k: 'name', l: '樹名', r: (t) => '<b>' + esc(t.name) + '</b>' },
+      { k: 'owner_email', l: '主人', r: (t) => '<span class="mono">' + esc(t.owner_email || '—') + '</span>' },
+      { k: 'orn_count', l: '吊飾', r: (t) => t.orn_count + ' / ' + (t.eggs_done ? 141 : 91) },
+      { k: 'eggs_done', l: '彩蛋獎勵', r: (t) => t.eggs_done ? '<span class="pill y">已解鎖</span>' : '<span class="pill">未解鎖</span>' },
+      { k: 'tone', l: '外觀', r: (t) => esc((TONE[t.tone] || '樹色 ' + t.tone) + ' · ' + t.top) },
+      { k: 'created_at', l: '種下時間', r: (t) => fmt(t.created_at) },
+      { k: 'last_orn_at', l: '最後有人掛', r: (t) => '<span title="' + fmt(t.last_orn_at) + '">' + ago(t.last_orn_at) + '</span>', csv: (t) => fmt(t.last_orn_at) },
+      { l: '', r: (t) => '<a class="btn sm" href="' + treeUrl(t.id) + '" target="_blank">開啟 ↗</a>', csv: false },
+    ], {
+      filter: (t, f) => (!f.eggs || (f.eggs === 'yes') === !!t.eggs_done) && (!f.min || t.orn_count >= +f.min) && (!f.full || t.orn_count >= (t.eggs_done ? 141 : 91)) && inDates(t.created_at, f),
+      text: (t) => [t.name, t.owner_email, t.id].join(' '),
+      filters: (f) => sel('eggs', '彩蛋獎勵', f.eggs, [['', '全部'], ['yes', '已解鎖'], ['no', '未解鎖']]) + num('min', '吊飾至少', f.min) + '<label><input type="checkbox" data-f="full"' + (f.full ? ' checked' : '') + '>只看掛滿的</label>' + dates(f),
+      open: (t) => drawer(t.name, [
+        ['樹的編號', '<span class="mono">' + t.id + '</span>'], ['分享連結', '<a href="' + treeUrl(t.id) + '" target="_blank">' + treeUrl(t.id) + '</a>'],
+        ['主人', esc(t.owner_email || '—')], ['吊飾', t.orn_count + ' / ' + (t.eggs_done ? 141 : 91)], ['彩蛋獎勵', t.eggs_done ? '已解鎖（多 50 個位置）' : '未解鎖'],
+        ['外觀', esc((TONE[t.tone] || t.tone) + ' · 樹頂 ' + t.top)], ['種下時間', fmt(t.created_at)], ['最後有人掛', fmt(t.last_orn_at)],
+      ], [
+        { t: '看這棵樹的祝福', f: () => { closeDrawer(); go('ornaments', { tree: t.id }); } },
+        { t: '改名', f: () => { const n = prompt('新的樹名（1～30 字）', t.name); if (n && n.trim()) act('rename_tree', t.id, n.trim(), '已改名'); } },
+        t.eggs_done ? { t: '關掉彩蛋獎勵', f: () => act('eggs_off', t.id, null, '已關掉') } : { t: '直接給彩蛋獎勵', f: () => act('eggs_on', t.id, null, '已多 50 個位置') },
+        { t: '刪除這棵樹', cls: 'danger', f: () => confirmTyped('刪除「' + t.name + '」和上面 ' + t.orn_count + ' 則祝福', '刪除') && act('delete_tree', t.id, null, '樹已刪除') },
+      ]),
+    });
+  },
+  ornaments() {
+    const trees = [['', '全部的樹']].concat(D.trees.map((t) => [t.id, t.name + '（' + (t.owner_email || '') + '）']));
+    const kinds = [['', '全部'], ['limited', '★ 限定吊飾']].concat([...new Set(D.ornaments.map((o) => o.kind))].map((k) => [k, kindName(k)]));
+    table(D.ornaments, [
+      { k: 'created_at', l: '時間', r: (o) => fmt(o.created_at) },
+      { k: 'tree_name', l: '樹', r: (o) => esc(o.tree_name) },
+      { k: 'from_name', l: '署名', r: (o) => o.from_name ? esc(o.from_name) : '<span class="pill">匿名</span>' },
+      { k: 'kind', l: '吊飾', r: (o) => (o.kind.startsWith('x_') ? '<span class="pill y">限定</span> ' : '') + esc(kindName(o.kind)), v: (o) => kindName(o.kind) },
+      { k: 'color', l: '顏色', r: (o) => colorDot(o.color), csv: (o) => o.color >= 0 ? PALN[o.color] : '原色' },
+      { k: 'message', l: '祝福內容', r: (o) => '<div class="msg">' + esc(o.message) + '</div>', cls: '' },
+      { k: 'ip', l: 'IP', r: (o) => ipCell(o.ip, o.ip_hash), v: (o) => o.ip || o.ip_hash },
+      { k: 'user_agent', l: '裝置', r: (o) => esc(device(o.user_agent)), v: (o) => device(o.user_agent) },
+      { l: '', r: () => '<button class="btn sm danger" data-act="del">刪除</button>', csv: false },
+    ], {
+      filter: (o, f) => (!f.tree || o.tree_id === f.tree) && (!f.kind || (f.kind === 'limited' ? o.kind.startsWith('x_') : o.kind === f.kind)) && (!f.anon || (f.anon === 'anon') === !o.from_name) && (!f.ip || (o.ip || '').includes(f.ip) || (o.ip_hash || '').startsWith(f.ip)) && inDates(o.created_at, f),
+      text: (o) => [o.tree_name, o.from_name, o.message, o.ip, kindName(o.kind)].join(' '),
+      filters: (f) => sel('tree', '樹', f.tree, trees) + sel('kind', '吊飾', f.kind, kinds) + sel('anon', '署名', f.anon, [['', '全部'], ['named', '有署名'], ['anon', '匿名']]) + txt('ip', 'IP', f.ip, '例如 1.2.3') + dates(f),
+      act: (a, o) => a === 'del' && confirm('刪除這則祝福？\n\n' + o.message) && act('delete_ornament', o.id, null, '已刪除'),
+      open: (o) => drawer((o.from_name || '匿名') + ' 的祝福', [
+        ['掛在', '<a href="' + treeUrl(o.tree_id) + '" target="_blank">' + esc(o.tree_name) + ' ↗</a>'], ['吊飾', esc(kindName(o.kind)) + '（第 ' + o.slot + ' 個位置）'], ['顏色', colorDot(o.color)],
+        ['時間', fmt(o.created_at)], ['IP', ipCell(o.ip, o.ip_hash)], ['裝置', esc(device(o.user_agent))], ['瀏覽器字串', '<span class="mono" style="font-size:11px">' + esc(o.user_agent || '—') + '</span>'],
+      ], [
+        { t: '這個 IP 的所有祝福', f: () => { closeDrawer(); go('ornaments', { ip: o.ip || o.ip_hash.slice(0, 10) }); } },
+        { t: '刪除這則', cls: 'danger', f: () => confirm('刪除這則祝福？') && act('delete_ornament', o.id, null, '已刪除') },
+        { t: '封鎖這個 IP', cls: 'danger', f: () => { const why = prompt('封鎖原因（可空白）', '亂留言'); if (why !== null) act('block_ip', o.ip || o.ip_hash, why, '已封鎖'); } },
+      ], '<div class="quote">' + esc(o.message) + '</div>'),
+    });
+  },
+  logins() {
+    const users = [['', '全部']].concat(D.users.map((u) => [u.id, u.email]));
+    table(D.logins, [
+      { k: 'created_at', l: '時間', r: (l) => fmt(l.created_at) },
+      { k: 'email', l: '帳號', r: (l) => '<span class="mono">' + esc(l.email || '—') + '</span>' },
+      { k: 'ip', l: 'IP', r: (l) => ipCell(l.ip) },
+      { k: 'user_agent', l: '裝置', r: (l) => esc(device(l.user_agent)), v: (l) => device(l.user_agent) },
+      { k: 'ua_raw', l: '瀏覽器字串', r: (l) => '<div class="msg mono" style="max-width:260px;font-size:11px;color:var(--mute)">' + esc(l.user_agent || '') + '</div>', v: (l) => l.user_agent },
+    ], {
+      filter: (l, f) => (!f.user || l.user_id === f.user) && (!f.ip || (l.ip || '').includes(f.ip)) && (!f.os || device(l.user_agent).startsWith(f.os)) && inDates(l.created_at, f),
+      text: (l) => [l.email, l.ip, l.user_agent].join(' '),
+      filters: (f) => sel('user', '帳號', f.user, users) + sel('os', '系統', f.os, [['', '全部'], ['iOS', 'iOS'], ['Android', 'Android'], ['Windows', 'Windows'], ['macOS', 'macOS']]) + txt('ip', 'IP', f.ip) + dates(f),
+      open: (l) => drawer('登入紀錄', [['帳號', esc(l.email)], ['時間', fmt(l.created_at)], ['IP', ipCell(l.ip)], ['裝置', esc(device(l.user_agent))], ['瀏覽器字串', '<span class="mono" style="font-size:11px">' + esc(l.user_agent || '—') + '</span>']], [
+        { t: '這個帳號的全部紀錄', f: () => { closeDrawer(); go('logins', { user: l.user_id }); } },
+      ]),
+    });
+  },
+  visitors() {
+    table(D.visitors, [
+      { k: 'ip', l: 'IP', r: (v) => ipCell(v.ip, v.ip_hash), v: (v) => v.ip || v.ip_hash },
+      { k: 'attempts', l: '掛吊飾嘗試', r: (v) => v.attempts },
+      { k: 'attempts_24h', l: '24 小時內', r: (v) => +v.attempts_24h > 15 ? '<span class="pill r">' + v.attempts_24h + '</span>' : v.attempts_24h },
+      { k: 'ornaments', l: '成功掛上', r: (v) => v.ornaments },
+      { k: 'first_at', l: '第一次', r: (v) => fmt(v.first_at) },
+      { k: 'last_at', l: '最後一次', r: (v) => '<span title="' + fmt(v.last_at) + '">' + ago(v.last_at) + '</span>', csv: (v) => fmt(v.last_at) },
+      { k: 'blocked', l: '狀態', r: (v) => v.blocked ? '<span class="pill r">已封鎖</span>' : '<span class="pill g">正常</span>' },
+    ], {
+      filter: (v, f) => (!f.st || (f.st === 'blocked') === !!v.blocked) && (!f.min || +v.attempts >= +f.min) && (!f.sus || +v.attempts - +v.ornaments >= 3),
+      text: (v) => [v.ip, v.ip_hash].join(' '),
+      filters: (f) => sel('st', '狀態', f.st, [['', '全部'], ['ok', '正常'], ['blocked', '已封鎖']]) + num('min', '嘗試至少', f.min) + '<label><input type="checkbox" data-f="sus"' + (f.sus ? ' checked' : '') + '>只看可疑（失敗 3 次以上）</label>',
+      open: (v) => drawer(v.ip || ('#' + v.ip_hash.slice(0, 10)), [
+        ['IP', ipCell(v.ip, v.ip_hash)], ['加密值', '<span class="mono" style="font-size:11px">' + esc(v.ip_hash) + '</span>'], ['嘗試', v.attempts + ' 次（24 小時內 ' + v.attempts_24h + '）'],
+        ['成功掛上', v.ornaments + ' 個'], ['第一次', fmt(v.first_at)], ['最後一次', fmt(v.last_at)], ['狀態', v.blocked ? '已封鎖' : '正常'],
+      ], [
+        { t: '看他掛的祝福', f: () => { closeDrawer(); go('ornaments', { ip: v.ip || v.ip_hash.slice(0, 10) }); } },
+        !v.blocked && { t: '封鎖這個 IP', cls: 'danger', f: () => { const why = prompt('封鎖原因（可空白）', ''); if (why !== null) act('block_ip', v.ip || v.ip_hash, why, '已封鎖'); } },
+        { t: '清除嘗試次數（解除限流）', f: () => act('clear_attempts', v.ip_hash, null, '已清除') },
+      ].filter(Boolean)),
+    });
+  },
+  blocked() {
+    table(D.blocked, [
+      { k: 'ip', l: 'IP / 加密值', r: (b) => '<span class="mono">' + esc(b.ip) + '</span>' },
+      { k: 'reason', l: '原因', r: (b) => esc(b.reason || '—') },
+      { k: 'created_at', l: '封鎖時間', r: (b) => fmt(b.created_at) },
+      { l: '', r: () => '<button class="btn sm" data-act="un">解除</button>', csv: false },
+    ], {
+      filter: () => true,
+      text: (b) => [b.ip, b.reason].join(' '),
+      filters: () => '<label>手動封鎖 IP<input id="newIp" placeholder="例如 1.2.3.4" style="width:160px"></label><button class="btn sm danger" id="addIp">封鎖</button>',
+      act: (a, b) => a === 'un' && act('unblock', b.id, null, '已解除'),
+      open: (b) => drawer('封鎖：' + b.ip, [['IP', '<span class="mono">' + esc(b.ip) + '</span>'], ['原因', esc(b.reason || '—')], ['時間', fmt(b.created_at)]], [{ t: '解除封鎖', f: () => act('unblock', b.id, null, '已解除') }]),
+    });
+    $('#addIp').onclick = () => { const ip = $('#newIp').value.trim(); if (!/^[0-9a-fA-F:.]{3,64}$/.test(ip)) { toast('IP 格式不對'); return; } act('block_ip', ip, '手動封鎖', '已封鎖'); };
+  },
+};
+function render() { if (D) PAGES[page](); }
+window.addEventListener('hashchange', () => { const p = location.hash.slice(1); if (p && p !== page) go(p); });
+boot();
+}
+</script>
+</body>
+</html>

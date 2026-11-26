@@ -16,6 +16,7 @@ const ERR: Record<string, [number, string]> = {
   too_many_on_tree: [429, "同一棵樹最多掛 3 個"],
   tree_full: [409, "這棵樹掛滿了"],
   tree_not_found: [404, "找不到這棵樹"],
+  blocked: [403, "你暫時不能在這裡掛吊飾"],
 };
 
 Deno.serve(async (req) => {
@@ -57,9 +58,10 @@ Deno.serve(async (req) => {
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
   const used = await db.from("used_challenges").insert({ sig: (b.pow as Solution).signature });
   if (used.error) return json({ error: used.error.code === "23505" ? "這次驗證已經用過了，請再按一次" : "伺服器出錯，等一下再試" }, used.error.code === "23505" ? 403 : 500);
-  await db.rpc("hang_note", { p_ip: ipHash }); // 先記錄這次嘗試（被擋下也算）
+  await db.rpc("hang_note", { p_ip: ipHash, p_ip_raw: ip }); // 先記錄這次嘗試（被擋下也算）
   const { data, error } = await db.rpc("hang_insert", {
     p_tree: tree, p_kind: kind, p_color: color, p_from: from, p_message: message, p_ip: ipHash,
+    p_ip_raw: ip, p_ua: req.headers.get("user-agent") ?? "",
   });
   if (error) {
     const key = Object.keys(ERR).find((k) => error.message.includes(k));
