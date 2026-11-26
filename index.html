@@ -127,7 +127,13 @@ textarea:focus{border-color:var(--gold)}
 #loading,#err{position:fixed;inset:0;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;padding:24px;text-align:center;font-size:14px;letter-spacing:.2em;color:#B9CBD6}
 #loading b{font-family:'Noto Serif TC',serif;font-size:30px;letter-spacing:.2em;color:var(--gold);text-shadow:0 0 24px rgba(244,203,114,.6);animation:breath 1.6s ease-in-out infinite}
 @keyframes breath{50%{opacity:.45}}
-#loading{pointer-events:none}
+#loading{pointer-events:none;z-index:40;background:#0A0F16}
+#loading .bar{display:block;width:180px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+#loading .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#F4CB72,#FFE1A0);transition:width .25s}
+#loading small{font-size:12px;letter-spacing:.05em;color:#8DA2B1;min-height:1em;pointer-events:auto}
+#loading small button{margin-left:6px;background:none;border:1px solid #8DA2B1;color:#DCE5EC;border-radius:12px;padding:2px 10px;font-size:12px}
+#hdTip{position:fixed;left:50%;bottom:calc(100% - 100vh + 14px);transform:translateX(-50%);z-index:4;font-size:11px;color:#AFC0CC;background:rgba(14,20,30,.6);padding:3px 10px;border-radius:10px;pointer-events:none;opacity:0;transition:opacity .4s}
+#hdTip.on{opacity:1}
 #err[hidden]{display:none}
 @media (max-width:520px){h1{font-size:22px}header{padding:14px 14px 30px}.side{right:12px;top:auto;bottom:auto;top:96px;transform:none}.side .ib{width:40px;height:40px}.zoom .ib{height:38px}}
 @media (prefers-reduced-motion:reduce){#card,#sheet,#eggCard,#vig{transition:none}.ec-img,#eggCard::before{animation:none}}
@@ -226,22 +232,44 @@ textarea:focus{border-color:var(--gold)}
 <button class="primary wide" id="ecBtn">收下彩蛋</button>
 </div>
 <div id="card" role="status"><div class="t" id="cardT"></div><div class="d" id="cardD"></div></div>
-<div id="loading"><b>星願樹</b>載入中</div>
+<div id="loading"><b>星願樹</b><span id="ldT">載入中 0%</span><i class="bar"><i id="ldBar"></i></i><small id="ldTip"></small></div>
 <div id="err" hidden>3D 載入失敗：瀏覽器不支援 WebGL，或 three.js 沒有載入。</div>
 
 <script>
 {
 const $ = (s) => document.querySelector(s);
-const PANO = 'assets/pano.jpg'; // Poly Haven「Blaubeuren Church Square」，CC0
+// 環景照片：先載入 2K（約 0.3MB）讓畫面很快出來，之後在背景換成高畫質（手機 4K、電腦 8K）
+const PANO_FAST = 'assets/pano-2k.jpg';
+const PANO_HD = window.innerWidth >= 1000 ? 'assets/pano.jpg' : 'assets/pano-4k.jpg';
+// 下載檔案並回報進度（0～1）
+function fetchProgress(url, onp) {
+  return fetch(url).then(async (r) => {
+    if (!r.ok) throw new Error(url + ' ' + r.status);
+    const total = +r.headers.get('content-length') || 0;
+    if (!r.body || !total) { const b = await r.blob(); onp(1); return b; }
+    const rd = r.body.getReader(), parts = []; let got = 0;
+    for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; onp(Math.min(1, got / total)); }
+    return new Blob(parts);
+  });
+}
+const loadImage = (blob) => new Promise((ok, bad) => { const im = new Image(); im.onload = () => ok(im); im.onerror = bad; im.src = URL.createObjectURL(blob); });
 if (typeof THREE === 'undefined') { $('#loading').remove(); $('#err').hidden = false; }
 else {
-  const img = new Image();
-  let pano = undefined, orn = undefined;
-  const go = () => { if (pano === undefined || orn === undefined) return; $('#loading').remove(); try { start(pano, orn); } catch (e) { console.error(e); const el = $('#err'); el.hidden = false; el.textContent = '3D 載入失敗：' + (e && e.message ? e.message : e) + ' ' + ((e && e.stack) || '').split('\n').slice(0, 3).join(' | '); } };
-  img.onload = () => { pano = img; go(); };
-  img.onerror = () => { pano = null; go(); };
-  img.src = PANO;
-  if (THREE.GLTFLoader) new THREE.GLTFLoader().load('assets/ornaments.glb', (g) => { orn = g.scene; go(); }, undefined, () => { orn = null; go(); });
+  let pano = undefined, orn = undefined, pP = 0, pO = 0, lastMove = Date.now(), t0 = Date.now();
+  const show = () => {
+    const pct = Math.round((pP * 0.4 + pO * 0.6) * 100); // 依檔案大小加權（照片約 0.3MB、吊飾約 0.5MB）
+    $('#ldT').textContent = '載入中 ' + pct + '%';
+    $('#ldBar').style.width = pct + '%';
+  };
+  const ldTimer = setInterval(() => {
+    if (!$('#loading')) { clearInterval(ldTimer); return; }
+    const tip = $('#ldTip');
+    if (Date.now() - lastMove > 25000) { tip.innerHTML = '好像卡住了 <button type="button" onclick="location.reload()">重新整理</button>'; }
+    else if (Date.now() - t0 > 6000) tip.textContent = '網路比較慢，再等一下下';
+  }, 1000);
+  const go = () => { if (pano === undefined || orn === undefined) return; clearInterval(ldTimer); $('#loading').remove(); try { start(pano, orn); } catch (e) { console.error(e); const el = $('#err'); el.hidden = false; el.textContent = '3D 載入失敗：' + (e && e.message ? e.message : e) + ' ' + ((e && e.stack) || '').split('\n').slice(0, 3).join(' | '); } };
+  fetchProgress(PANO_FAST, (f) => { pP = f; lastMove = Date.now(); show(); }).then(loadImage).then((im) => { pano = im; go(); }).catch(() => { pano = null; go(); });
+  if (THREE.GLTFLoader) new THREE.GLTFLoader().load('assets/ornaments.glb', (g) => { orn = g.scene; pO = 1; show(); go(); }, (x) => { if (x.total) { pO = x.loaded / x.total; lastMove = Date.now(); show(); } }, () => { orn = null; go(); });
   else orn = null;
 }
 
@@ -288,6 +316,15 @@ function start(panoImg, ornScene) {
   fill.position.set(5, 3, -5);
   scene.add(fill);
 
+  // ---------- 背景下載的小提示（街景、高畫質背景） ----------
+  const stEl = document.createElement('div'); stEl.id = 'hdTip'; document.body.appendChild(stEl);
+  const status = {};
+  function setStatus(k, v) {
+    if (v == null) delete status[k]; else status[k] = v;
+    const parts = Object.keys(status).map((n) => n + ' ' + Math.round(status[n] * 100) + '%');
+    if (parts.length) stEl.textContent = parts.join(' · ') + ' 載入中';
+    stEl.classList.toggle('on', parts.length > 0);
+  }
   // ---------- 360 度背景：跟著鏡頭的環景（照片不會變形） ----------
   const sky = new THREE.Group();
   if (panoImg) {
@@ -302,9 +339,23 @@ function start(panoImg, ornScene) {
     tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     tex.needsUpdate = true;
     const g = new THREE.SphereGeometry(80, 96, 48); g.scale(-1, 1, 1);
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, depthWrite: false }));
+    const skyMat = new THREE.MeshBasicMaterial({ map: tex, depthWrite: false });
+    const m = new THREE.Mesh(g, skyMat);
     m.rotation.y = -Math.PI / 2; m.renderOrder = -1;
     sky.add(m);
+    // 背景換成高畫質：下載完才換，換之前一直是 2K，不會卡住畫面
+    setTimeout(() => {
+      setStatus('高畫質背景', 0);
+      fetchProgress(PANO_HD, (f) => setStatus('高畫質背景', f))
+        .then(loadImage).then((im) => {
+          let s2 = im;
+          if (im.width > maxT) { const c = document.createElement('canvas'); c.width = maxT; c.height = maxT / 2; c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); s2 = c; }
+          const t2 = new THREE.Texture(s2); t2.anisotropy = tex.anisotropy; t2.needsUpdate = true;
+          skyMat.map = t2; skyMat.needsUpdate = true; tex.dispose();
+        })
+        .catch((e) => console.warn('高畫質背景沒載到，繼續用 2K', e))
+        .finally(() => setStatus('高畫質背景', null));
+    }, 1500);
   }
   scene.add(sky);
   // 樹附近的雪地：中間實心、邊緣慢慢變透明，跟照片的雪地接在一起
@@ -1259,7 +1310,12 @@ function start(panoImg, ornScene) {
       eggInfo[id] = { center, size: Math.max(sz.x, sz.y, sz.z) };
     });
   }
-  if (THREE.GLTFLoader) new THREE.GLTFLoader().load(STREET_URL, (g) => { try { setupStreet(g.scene); } catch (e) { console.error(e); } }, undefined, (e) => console.error(e));
+  if (THREE.GLTFLoader) {
+    setStatus('街景', 0);
+    new THREE.GLTFLoader().load(STREET_URL, (g) => { setStatus('街景', null); try { setupStreet(g.scene); } catch (e) { console.error(e); } },
+      (x) => { if (x.total) setStatus('街景', x.loaded / x.total); },
+      (e) => { setStatus('街景', null); console.error(e); toast('街景沒有載到', '重新整理試試看'); });
+  }
 
   const EGGTXT = {
     ginger: ['長椅底下的小工匠', '薑餅人趁大家不注意，偷偷在長椅底下蓋自己的小木屋。你幫他把屋頂裝上去了！'],
