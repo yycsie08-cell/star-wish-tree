@@ -1704,7 +1704,7 @@ function start(panoImg, ornScene) {
   const SB = window.supabase && location.protocol.startsWith('http') && !location.pathname.startsWith('/_') ? window.supabase.createClient(SB_URL, SB_KEY) : null;
   const OPEN_AT = Date.parse('2026-12-25T00:00:00+08:00');
   // Cloudflare Turnstile 真人驗證：填上 site key 就會啟用（伺服器那邊要同時設定 TURNSTILE_SECRET）
-  const TURNSTILE_SITEKEY = '';
+  const TURNSTILE_SITEKEY = '0x4AAAAAAGUJ9pl2l4ETlX-2';
   let tsWidget = null;
   function humanCheck() {
     if (!TURNSTILE_SITEKEY || tsWidget !== null) return;
