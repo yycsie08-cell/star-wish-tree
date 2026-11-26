@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
 
   const ipHash = await sha256(ip + (Deno.env.get("IP_SALT") ?? "star-wish-tree"));
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+  await db.rpc("hang_note", { p_ip: ipHash }); // 先記錄這次嘗試（被擋下也算）
   const { data, error } = await db.rpc("hang_insert", {
     p_tree: tree, p_kind: kind, p_color: color, p_from: from, p_message: message, p_ip: ipHash,
   });

@@ -30,7 +30,7 @@ create table public.ornaments (
 create index ornaments_ip_time on public.ornaments (ip_hash, created_at);
 create index ornaments_tree on public.ornaments (tree_id);
 
--- 限流紀錄：被擋下的嘗試也算，避免一直重試
+-- 限流紀錄（由 hang_note 寫入，見 0002）
 create table public.hang_attempts (
   id         bigint generated always as identity primary key,
   ip_hash    text not null,
