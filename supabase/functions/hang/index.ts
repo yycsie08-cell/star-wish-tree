@@ -1,5 +1,5 @@
 // 星願樹：朋友掛吊飾（不用登入）
-// 檢查順序：格式 → 人機驗證（工作量證明）→ 記錄嘗試 → 資料庫函式 hang_insert（限流、容量、寫入）
+// 檢查順序：格式 → 真人驗證（Cloudflare Turnstile）→ 工作量證明 → 記錄嘗試 → 資料庫函式 hang_insert（限流、容量、寫入）
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { checkSolution, sha256, type Solution } from "./pow.ts";
 
@@ -35,7 +35,21 @@ Deno.serve(async (req) => {
 
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
 
-  // 人機驗證：題目要解對、沒過期、沒被用過
+  // 真人驗證（Cloudflare Turnstile）：設定了 TURNSTILE_SECRET 就一定要通過
+  const tsSecret = Deno.env.get("TURNSTILE_SECRET");
+  if (tsSecret) {
+    const token = String(b.turnstile ?? "");
+    if (!token) return json({ error: "請先完成真人驗證" }, 403);
+    const form = new FormData();
+    form.append("secret", tsSecret);
+    form.append("response", token);
+    form.append("remoteip", ip);
+    const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form });
+    const v = await r.json().catch(() => ({ success: false }));
+    if (!v.success) return json({ error: "真人驗證沒有通過，請再試一次" }, 403);
+  }
+
+  // 第二層：工作量證明，題目要解對、沒過期、沒被用過
   const why = await checkSolution(b.pow as Solution | undefined);
   if (why) return json({ error: why === "expired" ? "驗證過期了，請再按一次" : "人機驗證沒有通過，請再試一次" }, 403);
 
