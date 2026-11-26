@@ -189,7 +189,6 @@ textarea:focus{border-color:var(--gold)}
 <div data-step="tree">
 <div class="h2">傳給朋友</div>
 <div class="share"><input id="link" type="text" readonly aria-label="分享連結"><button id="copy">複製</button></div>
-<div class="row"><button class="primary" data-go="pick">試掛一個吊飾</button></div>
 <div class="row" style="margin-top:10px" id="demoRow"><button class="ghost txt" id="fill">掛滿看看</button><button class="ghost txt" id="restart">重新種</button></div>
 <div class="row" style="margin-top:10px" id="ownerRow" hidden><button class="ghost txt" id="readMsg">看祝福</button><button class="ghost txt" id="logout">登出</button></div>
 </div>
@@ -216,7 +215,7 @@ textarea:focus{border-color:var(--gold)}
 <div class="dots"><i class="on"></i><i class="on"></i></div>
 <div class="h2"><span id="writeTitle">寫一段祝福</span><span class="lock"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 10V8a6 6 0 1 1 12 0v2h1v12H5V10zm2 0h8V8a4 4 0 1 0-8 0z"/></svg>12/25 開</span></div>
 <textarea id="msg" maxlength="200" aria-label="祝福內容">聖誕快樂！明年也請多指教。</textarea>
-<div class="field" style="margin-top:10px"><input id="from" type="text" maxlength="20" value="阿凱" placeholder="署名" aria-label="署名"></div>
+<div class="field" style="margin-top:10px"><input id="from" type="text" maxlength="20" placeholder="署名" aria-label="署名"></div>
 <label class="check"><input type="checkbox" id="anon">匿名</label>
 <div id="human"></div>
 <div class="row"><button class="ghost" data-go="pick">返回</button><button class="primary" id="hang">掛上去</button></div>
@@ -1463,7 +1462,7 @@ function start(panoImg, ornScene) {
   scene.add(new THREE.Points(snowGeo, new THREE.PointsMaterial({ map: glowTex, size: 0.05, transparent: true, opacity: 0.9, depthWrite: false })));
 
   // ---------- 流程 ----------
-  const NAMES = ['阿凱', '小美', 'Jason', '匿名', '阿哲', '媽媽', '小芸', '班長', 'Momo', '學長', '匿名', '阿嬤'];
+  const NAMES = ['Ryan', 'Daniel', 'Emma', 'Olivia', 'Ethan', 'Sophia', 'Lucas', 'Mia', 'Nathan', 'Chloe', 'Kevin', 'Grace'];
   const st = { step: 'welcome', name: '', tone: 0, top: 'star', sel: { k: 'ball', c: -1 } };
   function demoFill(n) { for (let i = 0; i < n && orns.length < MAXO; i++) addOrn(randOpt(), NAMES[orns.length % NAMES.length], false); settle(); }
   buildTree(TONES[0]); setTopper('star'); demoFill(MAXO);
