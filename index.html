@@ -89,7 +89,7 @@ textarea:focus{border-color:var(--gold)}
 .icons.six .ic.locked img{filter:grayscale(1) brightness(.45)}
 .icons.six .ic.locked span{opacity:.5}
 .icons.six .ic.locked::after{content:"";position:absolute;top:8px;left:50%;width:18px;height:18px;transform:translateX(-50%);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23F4CB72'%3E%3Cpath d='M6 10V8a6 6 0 1 1 12 0v2h1v12H5V10zm2 0h8V8a4 4 0 1 0-8 0z'/%3E%3C/svg%3E") center/contain no-repeat}
-#colorWrap[hidden]{display:none}
+#colorWrap[hidden],.row[hidden]{display:none}
 #kinds{max-height:244px;overflow-y:auto;padding:2px;margin:-2px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;mask-image:linear-gradient(180deg,#000 88%,transparent)}
 .sw2{display:flex;flex-wrap:wrap;gap:10px}
 .sw2 button{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.25);padding:0;transition:transform .15s}
@@ -132,6 +132,7 @@ textarea:focus{border-color:var(--gold)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div id="stage"></div>
@@ -180,7 +181,14 @@ textarea:focus{border-color:var(--gold)}
 <div class="h2">傳給朋友</div>
 <div class="share"><input id="link" type="text" readonly aria-label="分享連結"><button id="copy">複製</button></div>
 <div class="row"><button class="primary" data-go="pick">試掛一個吊飾</button></div>
-<div class="row" style="margin-top:10px"><button class="ghost txt" id="fill">掛滿看看</button><button class="ghost txt" id="restart">重新種</button></div>
+<div class="row" style="margin-top:10px" id="demoRow"><button class="ghost txt" id="fill">掛滿看看</button><button class="ghost txt" id="restart">重新種</button></div>
+<div class="row" style="margin-top:10px" id="ownerRow" hidden><button class="ghost txt" id="readMsg">看祝福</button><button class="ghost txt" id="logout">登出</button></div>
+</div>
+
+<div data-step="visit">
+<p class="p">掛一個吊飾，寫下你的祝福。<br>12/25 才會被打開。</p>
+<button class="primary wide" data-go="pick">掛一個祝福</button>
+<button class="ghost wide" id="mine" style="margin-top:10px">我也要種一棵</button>
 </div>
 
 <div data-step="pick">
@@ -1120,10 +1128,10 @@ function start(panoImg, ornScene) {
   let theta = 0;
   const tmpA = new V3();
   const anchorW = (o, c, s, out) => out.set(c * o.anchor.x + s * o.anchor.z, o.anchor.y, -s * o.anchor.x + c * o.anchor.z);
-  function addOrn(opt, name, drop) {
+  function addOrn(opt, name, drop, slot) {
     if (orns.length >= MAXO) return null;
-    const sl = slots[orns.length], o = buildOrn(opt);
-    Object.assign(o, { opt, name, ang: sl.a, anchor: sl.anchor, str: sl.str, tw: 0, tv: 0, spawn: drop ? 0 : 1, cm: o.cm * K, rad: o.rad * K });
+    const si = slot == null ? orns.length : slot, sl = slots[si], o = buildOrn(opt);
+    Object.assign(o, { opt, name, slot: si, ang: sl.a, anchor: sl.anchor, str: sl.str, tw: 0, tv: 0, spawn: drop ? 0 : 1, cm: o.cm * K, rad: o.rad * K });
     o.L = o.str + o.cm;
     const c = Math.cos(theta), s = Math.sin(theta), A = anchorW(o, c, s, new V3());
     const dir = drop ? new V3(c * Math.cos(o.ang) + s * Math.sin(o.ang), 0.9, -s * Math.cos(o.ang) + c * Math.sin(o.ang)).normalize() : new V3(0, -1, 0);
@@ -1294,7 +1302,11 @@ function start(panoImg, ornScene) {
   let rewardMode = false;
   $('#ecBtn').addEventListener('click', () => {
     const card = $('#eggCard');
-    if (rewardMode) { rewardMode = false; card.classList.remove('show'); $('#vig').classList.remove('on'); st.sel = { k: 'x_aurora', c: -1 }; renderKinds(); go('pick'); return; }
+    if (rewardMode) {
+      rewardMode = false; card.classList.remove('show'); $('#vig').classList.remove('on');
+      if ($('#ecBtn').textContent === '去挑一個') { st.sel = { k: 'x_aurora', c: -1 }; renderKinds(); go('pick'); }
+      return;
+    }
     card.classList.add('fly');
     setTimeout(() => {
       card.classList.remove('show', 'fly');
@@ -1307,7 +1319,7 @@ function start(panoImg, ornScene) {
           chime(true);
           for (let i = 0; i < 5; i++) setTimeout(() => burst(new V3(0, H * (0.3 + 0.15 * i), 0), 60, [0xFFE08A, 0xFFF3D6, 0xFFC870], 2.2, 0.4, 0.09, 2.4), i * 220);
           setTimeout(() => {
-            unlockReward(); rewardMode = true;
+            unlockReward(); rewardMode = true; if (window.__onEggsDone) window.__onEggsDone();
             $('#ecImg').src = icons.ox_aurora;
             $('#ecNo').textContent = '全部找齊・獎勵';
             $('#ecT').textContent = '解鎖限定吊飾';
@@ -1401,7 +1413,7 @@ function start(panoImg, ornScene) {
     const named = st.step !== 'welcome' && st.step !== 'name';
     $('#title').textContent = named ? (st.name || '我') + '的星願樹' : '把祝福，掛上樹';
     $('#sub').textContent = '';
-    if (st.step === 'tree' || st.step === 'pick' || st.step === 'write') {
+    if (st.step === 'tree' || st.step === 'pick' || st.step === 'write' || st.step === 'visit') {
       const b = document.createElement('b'); b.textContent = orns.length;
       $('#sub').append(b, ' 個祝福');
     }
@@ -1552,6 +1564,7 @@ function start(panoImg, ornScene) {
     const o = hit.object.userData.o;
     if (!o) return;
     poke(o, 1.6);
+    if (window.__readLetter && window.__readLetter(o)) return;
     toast(o.name + ' 的' + optName(o.opt), '12/25 打開');
   }
   // 縮放：0.22～3.2 倍（滾輪、兩指捏合、＋－按鈕）
@@ -1682,6 +1695,99 @@ function start(panoImg, ornScene) {
     sky.position.copy(camera.position);
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
+  }
+  // ---------- 線上版：Supabase ----------
+  const SB_URL = 'https://tiwbvgvbpiwwdzarwvgm.supabase.co', SB_KEY = 'sb_publishable_rp6a7D0yXwli1GyeWVj-8g_dWcdtNe6';
+  const SB = window.supabase && location.protocol.startsWith('http') && !location.pathname.startsWith('/_') ? window.supabase.createClient(SB_URL, SB_KEY) : null;
+  const OPEN_AT = Date.parse('2026-12-25T00:00:00+08:00');
+  const qs = new URLSearchParams(location.search);
+  let TREE = null, me = null, letters = null;
+  const isOwner = () => !!(TREE && me && TREE.owner === me.id);
+  const ownerUI = () => { $('#demoRow').hidden = true; $('#ownerRow').hidden = !isOwner(); };
+  const goOrig = go;
+  go = function (step) { if (TREE && step === 'tree' && !isOwner()) step = 'visit'; goOrig(step); };
+  async function loadTree(id) {
+    const { data: t, error } = await SB.from('trees').select('*').eq('id', id).maybeSingle();
+    if (error || !t) { toast('找不到這棵樹', ''); history.replaceState(null, '', location.pathname); return false; }
+    TREE = t; st.name = t.name; st.tone = t.tone; st.top = t.top;
+    buildTree(TONES[t.tone] || TONES[0]); setTopper(t.top);
+    MAXO = t.eggs_done || unlocked && isOwner() ? ALLO : BASEO;
+    clearOrns();
+    const { data: os } = await SB.rpc('tree_ornaments', { t: id });
+    (os || []).forEach((o) => { if (o.slot < ALLO && typeOf(o.kind)) addOrn({ k: o.kind, c: o.color }, o.from_name || '匿名', false, o.slot); });
+    settle();
+    $('#link').value = location.origin + '/?t=' + t.id;
+    ownerUI(); go(isOwner() ? 'tree' : 'visit');
+    return true;
+  }
+  if (SB) {
+    $('#from').value = ''; $('#msg').value = '';
+    $('#msg').placeholder = '想對他說的話'; 
+    (async () => {
+      const { data } = await SB.auth.getSession();
+      me = data.session ? data.session.user : null;
+      if (qs.get('t')) { await loadTree(qs.get('t')); return; }
+      if (me) {
+        const { data: mine } = await SB.from('trees').select('id').eq('owner', me.id).maybeSingle();
+        if (mine) { history.replaceState(null, '', '/?t=' + mine.id); await loadTree(mine.id); return; }
+        if (qs.get('create')) { clearOrns(); go('name'); }
+      }
+    })();
+    // 種樹前要先用 Google 登入（一個帳號一棵樹）
+    sheet.querySelector('[data-step=welcome] [data-go]').addEventListener('click', (e) => {
+      if (me) return;
+      e.stopImmediatePropagation(); go('welcome');
+      SB.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + '/?create=1' } });
+    }, true);
+    $('#plant').addEventListener('click', async (e) => {
+      e.stopImmediatePropagation();
+      const { data: t, error } = await SB.from('trees').insert({ owner: me.id, name: st.name || '我', tone: st.tone, top: st.top }).select().single();
+      if (error) { toast(error.code === '23505' ? '你已經有一棵樹了' : '種樹失敗', ''); return; }
+      history.replaceState(null, '', '/?t=' + t.id);
+      TREE = t; $('#link').value = location.origin + '/?t=' + t.id; ownerUI();
+      omega += 4; go('tree'); toast('樹種好了', '');
+    }, true);
+    $('#hang').addEventListener('click', async (e) => {
+      e.stopImmediatePropagation();
+      if (!TREE) return;
+      const msg = $('#msg').value.trim();
+      if (!msg) { toast('寫一句祝福吧', ''); $('#msg').focus(); return; }
+      const who = $('#anon').checked ? '' : $('#from').value.trim();
+      const opt = { k: st.sel.k, c: typeOf(st.sel.k).lim ? -1 : st.sel.c };
+      const btn = $('#hang'); btn.disabled = true;
+      try {
+        const r = await fetch(SB_URL + '/functions/v1/hang', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SB_KEY }, body: JSON.stringify({ tree: TREE.id, kind: opt.k, color: opt.c, from: who, message: msg }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { toast(j.error || '掛不上去，等一下再試', ''); return; }
+        addOrn(opt, who || '匿名', true, j.slot);
+        $('#msg').value = '';
+        go('tree'); toast('掛上去了', '12/25 打開');
+      } catch (err) { toast('網路有問題，等一下再試', ''); }
+      finally { btn.disabled = false; }
+    }, true);
+    $('#mine').addEventListener('click', () => { location.href = '/'; });
+    $('#logout').addEventListener('click', async () => { await SB.auth.signOut(); location.href = '/'; });
+    $('#readMsg').addEventListener('click', async () => {
+      const left = OPEN_AT - Date.now();
+      if (left > 0) { toast('12/25 才能打開', '還有 ' + Math.ceil(left / 864e5) + ' 天'); return; }
+      const { data, error } = await SB.rpc('my_messages');
+      if (error) { toast('讀取失敗', ''); return; }
+      letters = {}; (data || []).forEach((m) => { letters[m.slot] = m; });
+      fold(true); toast('點吊飾打開祝福', '共 ' + (data || []).length + ' 則');
+    });
+    window.__onEggsDone = () => { if (isOwner()) SB.rpc('claim_eggs').then(() => { TREE.eggs_done = true; }); };
+    window.__readLetter = (o) => {
+      if (!letters || !letters[o.slot]) return false;
+      const m = letters[o.slot];
+      rewardMode = true;
+      $('#ecImg').src = icons['o' + o.opt.k] || '';
+      $('#ecNo').textContent = (m.from_name || '匿名') + ' 的祝福';
+      $('#ecT').textContent = optName(o.opt);
+      $('#ecD').textContent = m.message;
+      $('#ecBtn').textContent = '收好';
+      $('#vig').classList.add('on'); $('#eggCard').classList.remove('fly'); $('#eggCard').classList.add('show');
+      return true;
+    };
   }
   header();
   requestAnimationFrame(frame);
